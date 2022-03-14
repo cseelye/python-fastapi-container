@@ -19,9 +19,9 @@ Redoc generated Open API docs: https://cseelye.github.io/python-fastapi-containe
     * pylint linting
     * black code formatting
 * Github CI/CD
-    * Automatic build, lint, test on every commit https://github.com/cseelye/python-fastapi-container/actions/workflows/build.yaml
-    * Automatic publish container image to GHCR https://github.com/cseelye/python-fastapi-container/pkgs/container/python-fastapi-container
-    * Automatic generate API docs and publish to github pages https://cseelye.github.io/python-fastapi-container/
+    * [Automatic build, lint, test on every commit](https://github.com/cseelye/python-fastapi-container/actions/workflows/build.yaml)
+    * [Automatic publish container image to GHCR](https://github.com/cseelye/python-fastapi-container/pkgs/container/python-fastapi-container)
+    * [Automatic generate API docs and publish to github pages](https://cseelye.github.io/python-fastapi-container/)
 
 ## Using This Template
 This repo is setup as a template repository, so the easiest way to use it is to click the green button **Use this template** at the top of the page and create a new project.
