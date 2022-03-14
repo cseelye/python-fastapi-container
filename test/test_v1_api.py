@@ -30,7 +30,7 @@ def test_command():
     assert response.json()["return_code"] == 0
     assert response.json()["stderr"].strip() == ""
     assert response.json()["stdout"].strip() == "/"
-    assert response.json()["elapsed_time"] < 0.1
+    assert response.json()["elapsed_time"] < 0.25
 
 
 def test_command_failed():
@@ -40,4 +40,4 @@ def test_command_failed():
     assert response.json()["return_code"] == 1
     assert response.json()["stderr"].strip() == ""
     assert response.json()["stdout"].strip() == ""
-    assert response.json()["elapsed_time"] < 0.1
+    assert response.json()["elapsed_time"] < 0.25
