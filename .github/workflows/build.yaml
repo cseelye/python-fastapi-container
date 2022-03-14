@@ -1,7 +1,8 @@
 name: Build/Test
 
 env:
-  image_name: fastapi-template
+  dev_image_name: ${{ github.event.repository.name }}-dev # Ex: python-fastapi-container-dev
+  image_name: ghcr.io/${{ github.repository }}            # Ex: ghcr.io/cseelye/python-fastapi-container
 
 on:
   push:
@@ -9,32 +10,135 @@ on:
       - main
 
 jobs:
-  pipeline:
-    name: Build and test
+  build-dev:
+    name: Build dev container
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
         uses: actions/checkout@v2
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build dev container image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          target: dev-container
+          push: false
+          tags: ${{ env.dev_image_name }}
+          outputs: type=docker,dest=/tmp/devimage.tar
+
+      - name: Upload image
+        uses: actions/upload-artifact@v2
+        with:
+          name: devimage
+          path: /tmp/devimage.tar
+
+
+  test_lint:
+    name: Run linter
+    needs: build-dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download image
+        uses: actions/download-artifact@v2
+        with:
+          name: devimage
+          path: /tmp
+
+      - name: Load image
+        run: |
+          docker load --input /tmp/devimage.tar
+          docker image ls -a
+
+      - name: Check out repo
+        uses: actions/checkout@v2
+
+      - name: Lint
+        run: |
+          docker container run --rm -v $(pwd):/work -w /work ${{ env.dev_image_name }} pylint -j0 app
+
+
+  test_ut:
+    name: Run unit tests
+    needs: build-dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download image
+        uses: actions/download-artifact@v2
+        with:
+          name: devimage
+          path: /tmp
+
+      - name: Load image
+        run: |
+          docker load --input /tmp/devimage.tar
+          docker image ls -a
+
+      - name: Check out repo
+        uses: actions/checkout@v2
+
+      - name: Test
+        run: |
+          docker container run --rm --pid=host --privileged -v $(pwd):/work -w /work ${{ env.dev_image_name }} pytest -v
+
+  build-doc:
+    name: Build/publish API docs
+    needs:
+      - test_lint
+      - test_ut
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v2
+
+      - name: Generate OpenAPI json
+        run: |
+          pip3 install fastapi requests
+          python3 generate_openapi.py
+
+      - name: Generate redoc
+        run: |
+          npx redoc-cli bundle -o index.html doc/openapi.json
+
+
+  build:
+    name: Build/publish service container
+    needs:
+      - test_lint
+      - test_ut
+    runs-on: ubuntu-latest
+    steps:
       - name: Log in to Github Container Registry
-        uses: docker/login-action@v1
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build dev container image
-        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Check out repo
+        uses: actions/checkout@v2
+
+      - name: Extract metadata for Docker image
+        id: meta
+        uses: docker/metadata-action@v3.6.2
+        with:
+          images: |
+            ${{ env.image_name }}
+          tags: |
+            type=raw,value={{date 'YYYYMMDD'}}
+          flavor: |
+            latest=true
+
+      - name: Build and push service container
+        uses: docker/build-push-action@v2
         with:
           context: .
-          target: dev-container
-          push: false
-          tags: ${{ env.image_name }}-dev
-
-      - name: Lint
-        run: |
-          docker container run --rm -v $(pwd):/work -w /work ${{ env.image_name }}-dev pylint -j0 app
-
-      - name: Test
-        run: |
-          docker container run --rm --pid=host --privileged -v $(pwd):/work -w /work ${{ env.image_name }}-dev pytest -v
+          target: service-container
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
