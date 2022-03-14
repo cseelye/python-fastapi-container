@@ -1,4 +1,4 @@
-name: Build, test, publish the service
+name: Build/Test
 
 env:
   image_name: fastapi-template

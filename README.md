@@ -1,4 +1,5 @@
 # python-fastapi-container
+![Pipeline Status](https://github.com/cseelye/python-fastapi-container/actions/workflows/build.yaml/badge.svg)
 
 Template for python microservice using python and FastAPI
 
