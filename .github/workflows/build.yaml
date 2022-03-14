@@ -7,11 +7,26 @@ env:
 on:
   push:
     branches:
-      - main
+      - '*'
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.setvars.outputs.publish }}
+    steps:
+      - name: Set variables
+        id: setvars
+        run: |
+          if [[ "${{github.base_ref}}" == "main" || "${{github.ref}}" == "refs/heads/main" ]]; then
+              echo "::set-output name=publish::true"
+          else
+              echo "::set-output name=publish::false"
+          fi
+
   build-dev:
     name: Build dev container
+    needs: setup
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
@@ -38,7 +53,9 @@ jobs:
 
   test_lint:
     name: Run linter
-    needs: build-dev
+    needs:
+      - setup
+      - build-dev
     runs-on: ubuntu-latest
     steps:
       - name: Download image
@@ -62,7 +79,9 @@ jobs:
 
   test_ut:
     name: Run unit tests
-    needs: build-dev
+    needs:
+      - setup
+      - build-dev
     runs-on: ubuntu-latest
     steps:
       - name: Download image
@@ -86,6 +105,7 @@ jobs:
   build-doc:
     name: Build/publish API docs
     needs:
+      - setup
       - test_lint
       - test_ut
     runs-on: ubuntu-latest
@@ -100,12 +120,19 @@ jobs:
 
       - name: Generate redoc
         run: |
-          npx redoc-cli bundle -o index.html doc/openapi.json
+          npx redoc-cli bundle -o public/index.html doc/openapi.json
 
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        if: ${{ needs.setup.outputs.publish == 'true' }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
 
   build:
     name: Build/publish service container
     needs:
+      - setup
       - test_lint
       - test_ut
     runs-on: ubuntu-latest
@@ -134,11 +161,11 @@ jobs:
           flavor: |
             latest=true
 
-      - name: Build and push service container
+      - name: Build (publish) service container
         uses: docker/build-push-action@v2
         with:
           context: .
           target: service-container
-          push: true
+          push: ${{ needs.setup.outputs.publish }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
