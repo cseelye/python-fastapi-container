@@ -1,0 +1,19 @@
+// For format details, see https://aka.ms/devcontainer.json
+{
+	"name": "dev container",
+	"build": {
+		"context": "..",
+		"dockerfile": "../Dockerfile",
+		"target": "dev-container"
+	},
+	"runArgs": [
+		"--privileged",
+		"--pid=host"
+	],
+	"settings": {},
+	"extensions": [
+		"ms-python.python",
+		"spencerwmiles.vscode-task-buttons",
+		"ms-vsliveshare.vsliveshare"
+	]
+}
